@@ -54,6 +54,39 @@ void set_open_file_limit(int l)
     setrlimit(RLIMIT_NOFILE,&d);
 }
 
+#include <charconv>
+int get_max_fd()
+{
+    std::stringstream ps;
+    ps << "/proc/" << getpid() << "/fd/";
+    DIR* dp{::opendir(ps.str().c_str())};
+    int entries{0};
+    errno = 0;
+    dirent* de = nullptr;
+    int max_value = 0;
+    while ((de = ::readdir(dp)) != nullptr)
+    {
+        int result{};
+        const std::string name(de->d_name);
+        auto [ptr, ec] {std::from_chars(name.begin(), name.end(), result) };
+        if (ec == std::errc())
+        {
+            ++entries;
+            if (result > max_value)
+                max_value = result;
+        }
+
+    }
+    if (errno != 0)
+    {
+        std::cerr << "DEBUG_STM:: error when reading dir: " << errno << " : " << strerror(errno)
+                  << " :: " << strerrorname_np(errno) << " :::: " << strerrordesc_np(errno)
+                  << std::endl;
+        abort();
+    }
+    ::closedir(dp);
+    return max_value;
+}
 
 int main(void)
 {
