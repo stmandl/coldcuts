@@ -41,7 +41,7 @@ public:
 		: longlongs(other.longlongs),
 		  num_bits(other.num_bits)
 	{
-		cerr << "Copied a bitvector!" << endl;
+		;//cerr << "Copied a bitvector!" << endl;
 	}
 	Bitvector(ll num_bits_)
 	{
@@ -69,101 +69,47 @@ public:
 			}
 		}
 	}
-	void print()
-	{
-		for (int i = 0; i < longlongs.size(); i++)
-		{
-			cout << std::hex << longlongs[i];
-		}
-		cout << endl;
-	}
+	// void print()
+	// {
+	// 	for (int i = 0; i < longlongs.size(); i++)
+	// 	{
+	// 		cout << std::hex << longlongs[i];
+	// 	}
+	// 	cout << endl;
+	// }
 	inline void clear(ll num)
 	{
 		ll pos = num / (sizeof(ll) * 8);
 		ll i = num - pos * sizeof(ll) * 8;
 		longlongs[pos] &= ~(((ll)1) << i);
 	}
-	inline int getBit(ll num) const
+	inline bool getBit(ll num) const
 	{
 		ll pos = num / (sizeof(ll) * 8);
 		ll i = num - pos * sizeof(ll) * 8;
 		return longlongs[pos] & (((ll)1) << i);
 	}
-	// inline int find_next_live_pos(ll p)
-	// {
-	// 	cerr << "FNLP (" << hex << this << ")" << endl;
-	// 	cerr << "fnlp-1: " << dec << p << endl;
-	// 	ll longlongssize = longlongs.size();
-	// 	cerr << "fnlp-2: vector-size: " << dec << longlongssize << endl;
-	// 	int start_llpos = p / (sizeof(ll) * 8);
-	// 	cerr << "fnlp-3: " << dec << start_llpos << endl;
-	// 	int start_bitpos = p - start_llpos * sizeof(ll) * 8;
-	// 	cerr << "fnlp-4: " << dec << start_bitpos << endl;
-	// 	ll current = longlongs[start_llpos];
-	// 	cerr << "fnlp-5: " << hex << current << endl;
-	// 	__builtin_prefetch(&(longlongs[0]) + ((start_llpos + 1) % longlongssize), 0, 0);
-	// 	if ((((ll)1) << start_bitpos) & current)
-	// 	{
-	// 		cerr << "vector_size after1: " << longlongs.size() << endl;
-	// 		return p;
-	// 	}
-	// 	if (start_bitpos > 0)
-	// 	{
-	// 		ll mask = ~((((ll)1) << (start_bitpos)) - 1);
-	// 		current &= mask;
-	// 	}
-	// 	int llpos = start_llpos;
 
-	// 	for (;;)
-	// 	{
-	// 		int offs = __builtin_ffsl(current);
-	// 		if (offs != 0)
-	// 		{
-	// 			cerr << "vector_size after2: " << longlongs.size() << endl;
-	// 			return llpos * sizeof(ll) * 8 + offs - 1;
-	// 		}
-	// 		llpos = (llpos + 1) % longlongssize;
-	// 		current = longlongs[llpos];
-	// 		__builtin_prefetch(&(longlongs[0]) + ((llpos + 1) % longlongssize), 0, 0);
-	// 		if (llpos == start_llpos)
-	// 		{
-	// 			// ok, we've gone full circle and found no bits
-	// 			// so we have to check where we started but only up to start_bitpos
-	// 			if (start_bitpos > 0)
-	// 			{
-	// 				ll mask = (((ll)1) << (start_bitpos)) - 1;
-	// 				current &= mask;
-	// 				int offs = __builtin_ffs(current);
-	// 				if (offs != 0)
-	// 				{
-	// 					cerr << "vector_size after3: " << longlongs.size() << endl;
-	// 					return llpos * sizeof(ll) * 8 + offs - 1;
-	// 				}
-	// 			}
-	// 			return -1;
-	// 		}
-	// 	}
-	// }
 	inline int find_next_live_pos(ll p)
 	{
 		if (p >= num_bits)
 		{
 			return -1;
 		}
-		//cerr << "FNLP (" << hex << this << ")" << endl;
-		//cerr << "p=" << dec << p << endl;
+		// cerr << "FNLP (" << hex << this << ")" << endl;
+		// cerr << "p=" << dec << p << endl;
 		ll longlongssize = longlongs.size();
-		//cerr << "vector-size=" << dec << longlongssize << endl;
+		// cerr << "vector-size=" << dec << longlongssize << endl;
 		int start_llpos = p / (sizeof(ll) * 8);
-		//cerr << "start_llpos=" << dec << start_llpos << endl;
+		// cerr << "start_llpos=" << dec << start_llpos << endl;
 		int start_bitpos = p - start_llpos * sizeof(ll) * 8;
-		//cerr << "start_bitpos=" << dec << start_bitpos << endl;
+		// cerr << "start_bitpos=" << dec << start_bitpos << endl;
 		ll current = longlongs[start_llpos];
-		//cerr << "current word= " << hex << current << endl;
+		// cerr << "current word= " << hex << current << endl;
 		//__builtin_prefetch(&(longlongs[0]) + ((start_llpos + 1) % longlongssize), 0, 0);
 		if ((((ll)1) << start_bitpos) & current)
 		{
-			//cerr << "vector_size after1: " << longlongs.size() << endl;
+			// cerr << "vector_size after1: " << longlongs.size() << endl;
 			return p;
 		}
 
@@ -173,37 +119,37 @@ public:
 			current &= mask;
 		}
 
-		//cerr << "current before loop: " << current << endl;
+		// cerr << "current before loop: " << current << endl;
 		int llpos = start_llpos;
 
 		for (;;)
 		{
 			int offs = __builtin_ffsl(current);
-			//cerr << "offs=" << dec << offs << endl;
+			// cerr << "offs=" << dec << offs << endl;
 			if (offs != 0)
 			{
-				//cerr << "vector_size after2: " << longlongs.size() << endl;
+				// cerr << "vector_size after2: " << longlongs.size() << endl;
 				return llpos * sizeof(ll) * 8 + offs - 1;
 			}
 			llpos = (llpos + 1) % longlongssize;
-			//cerr << "llpos = " << llpos << endl;
+			// cerr << "llpos = " << llpos << endl;
 			current = longlongs[llpos];
-			//cerr << "current = " << hex << current << dec << endl;
+			// cerr << "current = " << hex << current << dec << endl;
 			//__builtin_prefetch(&(longlongs[0]) + ((llpos + 1) % longlongssize), 0, 0);
 			if (llpos == start_llpos)
 			{
-				//cerr << "full circle" << endl;
-				// ok, we've gone full circle and found no bits
-				// so we have to check where we started but only up to start_bitpos
-				// if (start_bitpos > 0)
+				// cerr << "full circle" << endl;
+				//  ok, we've gone full circle and found no bits
+				//  so we have to check where we started but only up to start_bitpos
+				//  if (start_bitpos > 0)
 				//{
 				ll mask = (((ll)1) << (start_bitpos)) - 1;
 				current &= mask;
-				//cerr << "mask=" << hex << mask << " masked current = " << current << " start_bitpos=" << dec << start_bitpos << endl;
+				// cerr << "mask=" << hex << mask << " masked current = " << current << " start_bitpos=" << dec << start_bitpos << endl;
 				int offs = __builtin_ffsl(current);
 				if (offs != 0)
 				{
-					//cerr << "vector_size after3: " << longlongs.size() << endl;
+					// cerr << "vector_size after3: " << longlongs.size() << endl;
 					return llpos * sizeof(ll) * 8 + offs - 1;
 				}
 				else
@@ -214,7 +160,7 @@ public:
 			}
 		}
 	}
-}  __attribute__ ((aligned (sizeof(ll))));
+} __attribute__((aligned(sizeof(ll))));
 
 void bitvector_test()
 {
@@ -248,7 +194,7 @@ void bitvector_test()
 	for (int i = 0; i < 100; i++)
 	{
 		int size = rand() % 100000 + 10;
-		//int size = rand() % 5;
+		// int size = rand() % 5;
 		int start_pos = rand() % size;
 		Bitvector b5(size);
 		for (int j = 0; j < size; j++)
@@ -263,6 +209,17 @@ void bitvector_test()
 		}
 		assert(b5.find_next_live_pos(start_pos) == -1);
 	}
+}
+
+size_t the_team_sizes = -1;
+
+std::ostream &operator<<(std::ostream &s, const Bitvector &b)
+{
+	for (int i = 0; i < the_team_sizes; i++)
+	{
+		s << b.getBit(i);
+	}
+	return s;
 }
 
 namespace std
@@ -308,20 +265,24 @@ public:
 		return o.bv == bv;
 	}
 
+} __attribute__((aligned(sizeof(ll))));
 
-} __attribute__ ((aligned (sizeof(ll))));
 
-size_t the_team_sizes=-1;
-
-std::ostream& operator <<(std::ostream& s, const State& st) {
+std::ostream &operator<<(std::ostream &s, const State &st)
+{
 	s << "[L:" << st.size << "|Sc:" << st.score << "|P:" << st.potential_score << "GCD:" << st.gcd << "|Bits:";
-	for (int i=0; i<the_team_sizes;i++)
-	{
-		s << st.bv.getBit(i);
-	}
+	s << st.bv;
 	s << "]";
 	return s;
 }
+
+struct StateCmp
+{
+	constexpr bool operator()(const State& a, const State&b) const {
+		return a.score > b.score;
+	}
+};
+
 
 namespace std
 {
@@ -338,6 +299,14 @@ namespace std
 int main()
 {
 
+	// the_team_sizes=10;
+	// Bitvector v1(10);
+	// cerr << v1 << endl;
+	// v1.clear(1);
+	// cerr << v1 << endl;
+	// return 0;
+
+
 	//bitvector_test();
 	//return 0;
 
@@ -353,58 +322,78 @@ int main()
 
 	the_team_sizes = N;
 
-	vector<State> agenda;
+	vector<State> agenda_raw;
 	ll best_score = -1;
 	for (int i = 0; i < N; i++)
 	{
-		agenda.emplace_back(State(sizes, i));
+		agenda_raw.emplace_back(State(sizes, i));
 	}
+	priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
 	unordered_set<State> history;
 
 	while (agenda.size() > 0)
 	{
-		cout << agenda.size() << endl;
-		State current = agenda.back();
-		cerr << "current: " << current << endl;
-		agenda.pop_back();
+		// cout << "****** AGENDA (" << agenda.size() << ") *****" << endl;
+		// for (const auto& ai :  agenda) {
+		// 	cout << ai << endl;
+		// }
+		// cout << "********************" << endl;
+		
+		State current = agenda.top();
+		// cerr << "current: " << current << endl;
+		agenda.pop();
 		history.insert(current);
 		if (current.potential_score > best_score)
 		{
 			if (current.score > best_score && current.size > 1)
 			{
 				best_score = current.score;
-				cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
+				// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
 			}
 			// consider children
 			ll pos = 0;
-			cerr << "creating successor state" << endl;
+			ll succs = 0;
+			ll first_live_pos = -1;
 			for (;;)
 			{
-				cerr << "p:" << dec << pos << endl;
-				cerr << "p:" << dec << pos + 1 << endl;
-				int old_pos = pos;
+				//cerr << "p:" << dec << pos << endl;
+				//cerr << "p:" << dec << pos + 1 << endl;
+				//int old_pos = pos;
 				pos = current.bv.find_next_live_pos(pos);
-				cerr << "Pos (after):" << pos << endl;
+				if (pos == first_live_pos) {
+					break;
+				}
+				if (first_live_pos == -1) {
+					first_live_pos = pos;
+				}				
+				//cerr << "Pos (after):" << pos << endl;
 				if (pos == -1)
 				{
 					break;
-				}
-				if (old_pos != -1) {
-					current.bv.clear(pos);
 				}				
 				State new_state(sizes, current, pos);
 				if (history.find(new_state) == history.end())
 				{
-					agenda.push_back(new_state);
+					if (new_state.potential_score > best_score) {
+						agenda.push(new_state);
+						succs += 1;
+					}
+					if (new_state.score > best_score && new_state.size > 1)
+					{
+						best_score = new_state.score;						
+					}
 				}
+				pos += 1;
 			}
-			cerr << "done." << endl;
-		} else{
-			cerr << " .. dropped" << endl;
-		}		
-		cout << "AGENDA SIZE=" << agenda.size() << endl;
+			//cerr << "created " << succs << " successor states" << endl;
+		}
+		// else
+		// {
+		// 	cerr << " .. dropped" << endl;
+		// }		
 	}
 
-	cout << "RESULT: " << best_score << endl;
+	// cout << "RESULT: " << best_score << endl;
+	cout << best_score;
 	return 0;
 }
