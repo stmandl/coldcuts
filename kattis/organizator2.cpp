@@ -13,6 +13,20 @@ typedef vector<int> vi;
 
 using fmap = unordered_map<int, int>;
 
+
+ll compute_gcd(ll a, ll b)
+{
+	for (;;)
+	{
+		if (b == 0)
+			return a;
+		ll tmp = b;
+		b = a % b;
+		a = tmp;
+	}
+	abort();
+}
+
 // prime numbers
 ll _sieve_size;
 bitset<2000010> bs;
@@ -80,45 +94,97 @@ void print_primefactors(const vll& sizes, const vector<fmap>& freqs)
 	}
 }
 
-void print_pfreqs(const fmap& freqs)
+void print_pfreqs(const fmap& freqs, bool end_line=true, std::ostream &s = cout)
 {
 	for (auto& f : freqs) {
 		cout << "(" << f.first << ":" << f.second << ")";
 	}
-	cout << endl;
+	if (end_line) {
+		cout << endl;
+	}
 }
 
-ll evaluate(const fmap& factors, const vector<fmap>& teams) {
-	if (teams.size() < 2) {
+ll evaluate(ll factors, const vector<ll>& teams, ll num_actions) {
+	if (num_actions < 2) {
 		return 0;
 	}
+	// if (teams.size() < 2) {
+	// 	return 0;
+	// }
 	ll res=0;
-	for (const auto& team : teams) {
-		for (const auto& it : team) {
-			const auto f = factors.find(it.first);
-			if (f != factors.end()) {
-				res += min(f->second, it.second);
-			}
+	ll num_teams_covered = 0;
+	cout << "Scoring " << factors << endl;
+	for (const ll team : teams) {		
+		ll g = team / factors;
+		cout << "gcd(" << factors << "," << team << ")="  << g << endl;
+		if ((g * factors == team) && g>1) {
+			res+=factors;
 		}
 	}
+	cout << "res=" << res << endl;
 	return res;
 };
 
 struct State {	
-	fmap applied_actions;
+	friend std::hash<State>;
+	ll applied_actions;
 	fmap remaining_actions;
-	ll score;	
-	State(fmap& applied_actions_, fmap& possible_actions_, const vector<fmap>& teams) :
-    	applied_actions(applied_actions_), remaining_actions(possible_actions_)
-	{
-		score = evaluate(applied_actions, teams);
+	ll score;
+	ll num_actions;
+	State(const fmap& remaining_actions_)
+	: applied_actions(1), remaining_actions(remaining_actions_), score(0), num_actions(0)
+	{		
 	}
-	State
+	State(ll applied_actions_, const fmap& possible_actions_, ll action, const vector<ll>& teams, ll num_actions_) :
+    	applied_actions(applied_actions_ * action), remaining_actions(possible_actions_), num_actions(num_actions_)
+	{
+		remaining_actions[action] = remaining_actions[action] - 1;
+		if (remaining_actions[action] == 0) {
+			remaining_actions.erase(action);
+		}
+		score = evaluate(applied_actions, teams, num_actions);
+	}
+	bool operator==(const State &o) const 
+	{
+		return applied_actions == o.applied_actions;
+	}
+	friend bool operator<(const State &a, const State &b) 
+	{
+		return a.score < b.score;
+	}
 };
+
+namespace std
+{
+	template <>
+	struct hash<State>
+	{
+		auto operator()(const State &v) const -> size_t
+		{
+			return v.applied_actions;
+		}
+	};
+}
+
+struct StateCmp
+{
+	constexpr bool operator()(const State& a, const State&b) const {
+		return a.score < b.score;
+	}
+};
+
+std::ostream &operator<<(std::ostream &s, const State &b)
+{
+	s << "[Sc:" << dec << b.score << "," << b.applied_actions;
+	s << "||";
+	print_pfreqs(b.remaining_actions, false, s);
+	s << "]";
+	return s;
+}
 
 int main() {
 	ll max_prime = ll(sqrt(2'000'000))+1;
-	cout << "BP=" << max_prime << endl;
+	// cout << "BP=" << max_prime << endl;
 	sieve(max_prime);
 	
 	// read input
@@ -138,91 +204,62 @@ int main() {
 	fmap pmax_freqs;
 	for (ll i : sizes) {
 		pfreqs.emplace_back(fmap{});
-		unordered_map<int, int>& current = pfreqs.back();
+		fmap& current = pfreqs.back();
 		primeFactors(i, current, pmin_freqs, pmax_freqs);
 	}
 
-	print_primefactors(sizes, pfreqs);
-	cout << "Min: ";print_pfreqs(pmin_freqs);
-	cout << "Max: ";print_pfreqs(pmax_freqs);
+	// print_primefactors(sizes, pfreqs);
+	// cout << "Min: ";print_pfreqs(pmin_freqs);
+	// cout << "Max: ";print_pfreqs(pmax_freqs);
 
 
-	// ............. continue here .............
-
-
-	// search the subsets of the primes with their frequencies
-	vector<State> agenda_raw;
+	vector<State> agenda;
 	ll best_score = -1;
-	for (int i = 0; i < N; i++)
-	{
-		agenda_raw.emplace_back(State(sizes, i));
-	}
-	priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
+	// initial state
+	agenda.emplace_back(State(pmax_freqs));
+
+	//priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
 	unordered_set<State> history;
 
 	while (agenda.size() > 0)
 	{
-		// cout << "****** AGENDA (" << agenda.size() << ") *****" << endl;
-		// for (const auto& ai :  agenda) {
-		// 	cout << ai << endl;
-		// }
-		// cout << "********************" << endl;
-		
-		State current = agenda.top();
-		// cerr << "current: " << current << endl;
-		agenda.pop();
-		history.insert(current);
-		if (current.potential_score > best_score)
-		{
-			if (current.score > best_score && current.size > 1)
-			{
-				best_score = current.score;
-				// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
-			}
-			// consider children
-			ll pos = 0;
-			ll succs = 0;
-			ll first_live_pos = -1;
-			for (;;)
-			{
-				//cerr << "p:" << dec << pos << endl;
-				//cerr << "p:" << dec << pos + 1 << endl;
-				//int old_pos = pos;
-				pos = current.bv.find_next_live_pos(pos);
-				if (pos == first_live_pos) {
-					break;
-				}
-				if (first_live_pos == -1) {
-					first_live_pos = pos;
-				}				
-				//cerr << "Pos (after):" << pos << endl;
-				if (pos == -1)
-				{
-					break;
-				}				
-				State new_state(sizes, current, pos);
-				if (history.find(new_state) == history.end())
-				{
-					if (new_state.potential_score > best_score) {
-						agenda.push(new_state);
-						succs += 1;
-					}
-					if (new_state.score > best_score && new_state.size > 1)
-					{
-						best_score = new_state.score;						
-					}
-				}
-				pos += 1;
-			}
-			//cerr << "created " << succs << " successor states" << endl;
+		cout << "****** AGENDA (" << agenda.size() << ") *****" << endl;
+		for (const auto& ai :  agenda) {
+			cout << ai << endl;
 		}
-		// else
-		// {
-		// 	cerr << " .. dropped" << endl;
-		// }		
-	}
+		cout << "********************" << endl;
+		std::pop_heap(agenda.begin(), agenda.end());
+		State current = agenda.back();
+		agenda.pop_back();
+		// cerr << "current: " << current << endl;
+		
+		//cout << "AS=" << agenda.size() << endl;
+		history.insert(current);
+//		if (current.potential_score > best_score)
+//		{
+		if (current.score > best_score)
+		{
+			best_score = current.score;
+			// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
+		}
 
+		for (auto& action : current.remaining_actions) {
+
+			State child(current.applied_actions,current.remaining_actions, action.first, sizes, current.num_actions+1);
+			if (child.score >= current.score) {
+				agenda.push_back(child);
+				push_heap(agenda.begin(), agenda.end());
+			}
+		}
+
+		// if (agenda.size() > 4) {
+		// 	goto exit;
+		// }
+	}
+exit:
 	// cout << "RESULT: " << best_score << endl;
+	if (best_score <= 0) 
+		best_score = sizes.size();
 	cout << best_score;
 	return 0;
 
@@ -230,18 +267,7 @@ int main() {
 
 
 
-ll compute_gcd(ll a, ll b)
-{
-	for (;;)
-	{
-		if (b == 0)
-			return a;
-		ll tmp = b;
-		b = a % b;
-		a = tmp;
-	}
-	abort();
-}
+
 
 // class Bitvector
 // {
