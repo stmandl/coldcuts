@@ -6,6 +6,8 @@
  * find subset S of the n_i which maximizes lcd(S) * |S| with |S|>=2
  */
 #include <bits/stdc++.h>
+#include <chrono>
+using namespace std::chrono;
 using namespace std;
 typedef long long ll;
 typedef vector<ll> vll;
@@ -13,6 +15,152 @@ typedef vector<int> vi;
 
 using fmap = unordered_map<int, int>;
 
+class Bitvector
+{
+	friend std::hash<Bitvector>;
+
+private:
+	vll longlongs;
+	
+
+public:
+	ll num_bits;
+	bool operator==(const Bitvector &o) const
+	{
+		return o.num_bits == num_bits && o.longlongs == longlongs;
+	}
+	Bitvector(const Bitvector &other)
+		: longlongs(other.longlongs),
+		  num_bits(other.num_bits)
+	{
+		;//cerr << "Copied a bitvector!" << endl;
+	}
+	Bitvector(const Bitvector &&other)
+		: longlongs(std::move(other.longlongs)),
+		  num_bits(std::move(other.num_bits))
+	{
+		//cerr << "Moved a bitvector!" << endl;
+	}
+	Bitvector & operator=( Bitvector && ) = default;	
+	
+	Bitvector(ll num_bits_)
+	{
+		num_bits = num_bits_;
+		assert(num_bits > 0);
+		int num_lls = num_bits / (sizeof(ll) * 8);
+		bool needs_extra = (num_lls * sizeof(ll) * 8) != num_bits;
+		if (needs_extra)
+		{
+			num_lls++;
+		}
+		longlongs.assign(num_lls, -1);
+		// clear the end
+		if (needs_extra)
+		{
+			// cout << "clearing the extra bits" << endl;
+			int extra = num_lls * sizeof(ll) * 8 - num_bits;
+			// cout << "clearing " << extra << " extra bits\n";
+			for (int i = 1; i <= extra; i++)
+			{
+				// cout << std::hex << longlongs[longlongs.size()-1] << endl;
+				int j = sizeof(ll) * 8 - i;
+				// cout << "clear " << std::dec << j<<":" << std::hex << ~(((ll)1)<<j) << endl;
+				longlongs[longlongs.size() - 1] &= ~(((ll)1) << j);
+			}
+		}
+	}
+	// void print()
+	// {
+	// 	for (int i = 0; i < longlongs.size(); i++)
+	// 	{
+	// 		cout << std::hex << longlongs[i];
+	// 	}
+	// 	cout << endl;
+	// }
+	inline void clear(ll num)
+	{
+		ll pos = num / (sizeof(ll) * 8);
+		ll i = num - pos * sizeof(ll) * 8;
+		longlongs[pos] &= ~(((ll)1) << i);
+	}
+	inline bool getBit(ll num) const
+	{
+		ll pos = num / (sizeof(ll) * 8);
+		ll i = num - pos * sizeof(ll) * 8;
+		return longlongs[pos] & (((ll)1) << i);
+	}
+
+	inline int find_next_live_pos(ll p) const
+	{
+		if (p >= num_bits)
+		{
+			return -1;
+		}
+		// cerr << "FNLP (" << hex << this << ")" << endl;
+		// cerr << "p=" << dec << p << endl;
+		ll longlongssize = longlongs.size();
+		// cerr << "vector-size=" << dec << longlongssize << endl;
+		int start_llpos = p / (sizeof(ll) * 8);
+		// cerr << "start_llpos=" << dec << start_llpos << endl;
+		int start_bitpos = p - start_llpos * sizeof(ll) * 8;
+		// cerr << "start_bitpos=" << dec << start_bitpos << endl;
+		ll current = longlongs[start_llpos];
+		// cerr << "current word= " << hex << current << endl;
+		//__builtin_prefetch(&(longlongs[0]) + ((start_llpos + 1) % longlongssize), 0, 0);
+		if ((((ll)1) << start_bitpos) & current)
+		{
+			// cerr << "vector_size after1: " << longlongs.size() << endl;
+			return p;
+		}
+
+		if (start_bitpos > 0)
+		{
+			ll mask = ~((((ll)1) << (start_bitpos)) - 1);
+			current &= mask;
+		}
+
+		// cerr << "current before loop: " << current << endl;
+		int llpos = start_llpos;
+
+		for (;;)
+		{
+			int offs = __builtin_ffsl(current);
+			// cerr << "offs=" << dec << offs << endl;
+			if (offs != 0)
+			{
+				// cerr << "vector_size after2: " << longlongs.size() << endl;
+				return llpos * sizeof(ll) * 8 + offs - 1;
+			}
+			llpos = (llpos + 1) % longlongssize;
+			// cerr << "llpos = " << llpos << endl;
+			current = longlongs[llpos];
+			// cerr << "current = " << hex << current << dec << endl;
+			//__builtin_prefetch(&(longlongs[0]) + ((llpos + 1) % longlongssize), 0, 0);
+			if (llpos == start_llpos)
+			{
+				// cerr << "full circle" << endl;
+				//  ok, we've gone full circle and found no bits
+				//  so we have to check where we started but only up to start_bitpos
+				//  if (start_bitpos > 0)
+				//{
+				ll mask = (((ll)1) << (start_bitpos)) - 1;
+				current &= mask;
+				// cerr << "mask=" << hex << mask << " masked current = " << current << " start_bitpos=" << dec << start_bitpos << endl;
+				int offs = __builtin_ffsl(current);
+				if (offs != 0)
+				{
+					// cerr << "vector_size after3: " << longlongs.size() << endl;
+					return llpos * sizeof(ll) * 8 + offs - 1;
+				}
+				else
+				{
+					//}
+					return -1;
+				}
+			}
+		}
+	}
+} __attribute__((aligned(sizeof(ll))));
 
 ll compute_gcd(ll a, ll b)
 {
@@ -110,22 +258,47 @@ void print_vll(std::ostream&s, const vll& v) {
 	}	
 }
 
-ll evaluate(ll factors, const vector<ll>& teams, ll num_actions) {
+std::ostream &operator<<(std::ostream &s, const Bitvector &b)
+{
+	for (int i = 0; i < b.num_bits; i++)
+	{
+		s << b.getBit(i);
+	}
+	return s;
+}
+
+ll eval_time = 0;
+ll evaluate(ll factors, const vector<ll>& teams, ll num_actions, Bitvector& eval_positions) {
+	auto start = high_resolution_clock::now();
 	ll res=0;
 	ll num_teams_covered = 0;
-	//cout << "Scoring " << factors << endl;
-	for (const ll team : teams) {		
+	
+	ll pos = 0;
+	
+	for (;;) {
+		//cout << "BS:" << eval_positions << endl;
+		//cout << "pos:" << pos << endl;
+		ll new_pos = eval_positions.find_next_live_pos(pos);
+		if (new_pos == -1 || new_pos < pos ) {
+			break;
+		}
+		pos = new_pos+1;
+		ll team = teams[pos];
 		ll g = team / factors;
 		//cout << "gcd(" << factors << "," << team << ")="  << g << endl;
 		if ((g * factors == team)) {
 			res+=factors;
 			num_teams_covered++;
+		} else {
+			eval_positions.clear(pos);
 		}
 	}
 	if (num_teams_covered < 2) {
 		res = 0;
 	}
 	//cout << "num_teams_covered= " << num_teams_covered << " res=" << res << endl;
+	auto stop = high_resolution_clock::now();
+	eval_time += duration_cast<nanoseconds>(stop - start).count();
 	return res;
 };
 
@@ -133,14 +306,15 @@ struct State {
 	friend std::hash<State>;
 	ll applied_actions;
 	vll remaining_actions;
+	Bitvector eval_positions;
 	ll score;
 	ll num_actions;
-	State(const vll& remaining_actions_)
-	: applied_actions(1), remaining_actions(remaining_actions_), score(0), num_actions(0)
+	State(const vll& remaining_actions_, ll num_teams)
+	: applied_actions(1), remaining_actions(remaining_actions_), eval_positions(num_teams), score(0), num_actions(0)
 	{		
 	}
-	State(ll applied_actions_, const vll& remaining_actions_, ll num_actions_, ll score_) :
-    	applied_actions(applied_actions_), remaining_actions(remaining_actions_), num_actions(num_actions_), score(score_)
+	State(ll applied_actions_, const vll& remaining_actions_, ll num_actions_, ll score_, Bitvector& eval_positions_) :
+    	applied_actions(applied_actions_), remaining_actions(remaining_actions_), eval_positions(std::move(eval_positions_)), num_actions(num_actions_), score(score_)
 	{
 		
 	}
@@ -220,12 +394,12 @@ int main() {
 			}
 		}
 	}
-	//cout << "num primes:" << my_primes.size() << endl;
+	cout << "num primes:" << my_primes.size() << endl;
 
 	vector<State> agenda;
 	ll best_score = -1;
 	// initial state
-	agenda.emplace_back(State(my_primes));
+	agenda.emplace_back(State(my_primes, sizes.size()));
 
 	//priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
 	unordered_set<State> history;
@@ -254,30 +428,35 @@ int main() {
 			best_score = current.score;
 			// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
 		}
-
+		std::unordered_set<ll> unsuccessful;			
 		for (int i=0; i<current.remaining_actions.size(); i++) {
 			
 			ll current_action = current.remaining_actions[i];
-
+			// if (unsuccessful.find(current_action) != unsuccessful.end()) {
+			// 	continue;
+			// }			
 			// State child(current.applied_actions, new_remaining_actions, current_action, sizes, current.num_actions+1);
 
 			ll child_applied_actions = current.applied_actions * current_action;
 			ll child_num_actions = current.num_actions+1;
-			ll new_score = evaluate(child_applied_actions, sizes, child_num_actions);
+			Bitvector new_eval_positions = current.eval_positions;
+			ll new_score = evaluate(child_applied_actions, sizes, child_num_actions, new_eval_positions);
 
 			if (new_score > current.score) {
 				vll new_remaining_actions = current.remaining_actions;
 				new_remaining_actions.erase(new_remaining_actions.begin()+i);
-				State child(child_applied_actions, new_remaining_actions, child_num_actions,new_score);
+				State child(child_applied_actions, new_remaining_actions, child_num_actions,new_score, new_eval_positions);
 				if (history.find(child) == history.end()) {
 					agenda.push_back(child);
 					push_heap(agenda.begin(), agenda.end());
 					history.insert(child);
 				} else {
+					//unsuccessful.insert(current_action);
 					//cerr << "dropping child " << child << " because it's already in the history" << endl;
 				}
 			} else {
 				// cerr << "dropping child " << child << " because score " << child.score << " is worse than the parent's score: " << current.score << endl;
+				//unsuccessful.insert(current_action);
 			}
 		}
 
@@ -290,7 +469,9 @@ exit:
 	if (best_score <= 0) 
 		best_score = sizes.size();
 	//cout << "Search space size: " << search_space << endl;
+	cout << "total eval time:" << eval_time/1.0e9 << endl;
 	cout << best_score;
+
 	return 0;
 
 }
@@ -299,143 +480,7 @@ exit:
 
 
 
-// class Bitvector
-// {
-// 	friend std::hash<Bitvector>;
 
-// private:
-// 	vll longlongs;
-// 	ll num_bits;
-
-// public:
-// 	bool operator==(const Bitvector &o) const
-// 	{
-// 		return o.num_bits == num_bits && o.longlongs == longlongs;
-// 	}
-// 	Bitvector(const Bitvector &other)
-// 		: longlongs(other.longlongs),
-// 		  num_bits(other.num_bits)
-// 	{
-// 		;//cerr << "Copied a bitvector!" << endl;
-// 	}
-// 	Bitvector(ll num_bits_)
-// 	{
-// 		num_bits = num_bits_;
-// 		assert(num_bits > 0);
-// 		int num_lls = num_bits / (sizeof(ll) * 8);
-// 		bool needs_extra = (num_lls * sizeof(ll) * 8) != num_bits;
-// 		if (needs_extra)
-// 		{
-// 			num_lls++;
-// 		}
-// 		longlongs.assign(num_lls, -1);
-// 		// clear the end
-// 		if (needs_extra)
-// 		{
-// 			// cout << "clearing the extra bits" << endl;
-// 			int extra = num_lls * sizeof(ll) * 8 - num_bits;
-// 			// cout << "clearing " << extra << " extra bits\n";
-// 			for (int i = 1; i <= extra; i++)
-// 			{
-// 				// cout << std::hex << longlongs[longlongs.size()-1] << endl;
-// 				int j = sizeof(ll) * 8 - i;
-// 				// cout << "clear " << std::dec << j<<":" << std::hex << ~(((ll)1)<<j) << endl;
-// 				longlongs[longlongs.size() - 1] &= ~(((ll)1) << j);
-// 			}
-// 		}
-// 	}
-// 	// void print()
-// 	// {
-// 	// 	for (int i = 0; i < longlongs.size(); i++)
-// 	// 	{
-// 	// 		cout << std::hex << longlongs[i];
-// 	// 	}
-// 	// 	cout << endl;
-// 	// }
-// 	inline void clear(ll num)
-// 	{
-// 		ll pos = num / (sizeof(ll) * 8);
-// 		ll i = num - pos * sizeof(ll) * 8;
-// 		longlongs[pos] &= ~(((ll)1) << i);
-// 	}
-// 	inline bool getBit(ll num) const
-// 	{
-// 		ll pos = num / (sizeof(ll) * 8);
-// 		ll i = num - pos * sizeof(ll) * 8;
-// 		return longlongs[pos] & (((ll)1) << i);
-// 	}
-
-// 	inline int find_next_live_pos(ll p)
-// 	{
-// 		if (p >= num_bits)
-// 		{
-// 			return -1;
-// 		}
-// 		// cerr << "FNLP (" << hex << this << ")" << endl;
-// 		// cerr << "p=" << dec << p << endl;
-// 		ll longlongssize = longlongs.size();
-// 		// cerr << "vector-size=" << dec << longlongssize << endl;
-// 		int start_llpos = p / (sizeof(ll) * 8);
-// 		// cerr << "start_llpos=" << dec << start_llpos << endl;
-// 		int start_bitpos = p - start_llpos * sizeof(ll) * 8;
-// 		// cerr << "start_bitpos=" << dec << start_bitpos << endl;
-// 		ll current = longlongs[start_llpos];
-// 		// cerr << "current word= " << hex << current << endl;
-// 		//__builtin_prefetch(&(longlongs[0]) + ((start_llpos + 1) % longlongssize), 0, 0);
-// 		if ((((ll)1) << start_bitpos) & current)
-// 		{
-// 			// cerr << "vector_size after1: " << longlongs.size() << endl;
-// 			return p;
-// 		}
-
-// 		if (start_bitpos > 0)
-// 		{
-// 			ll mask = ~((((ll)1) << (start_bitpos)) - 1);
-// 			current &= mask;
-// 		}
-
-// 		// cerr << "current before loop: " << current << endl;
-// 		int llpos = start_llpos;
-
-// 		for (;;)
-// 		{
-// 			int offs = __builtin_ffsl(current);
-// 			// cerr << "offs=" << dec << offs << endl;
-// 			if (offs != 0)
-// 			{
-// 				// cerr << "vector_size after2: " << longlongs.size() << endl;
-// 				return llpos * sizeof(ll) * 8 + offs - 1;
-// 			}
-// 			llpos = (llpos + 1) % longlongssize;
-// 			// cerr << "llpos = " << llpos << endl;
-// 			current = longlongs[llpos];
-// 			// cerr << "current = " << hex << current << dec << endl;
-// 			//__builtin_prefetch(&(longlongs[0]) + ((llpos + 1) % longlongssize), 0, 0);
-// 			if (llpos == start_llpos)
-// 			{
-// 				// cerr << "full circle" << endl;
-// 				//  ok, we've gone full circle and found no bits
-// 				//  so we have to check where we started but only up to start_bitpos
-// 				//  if (start_bitpos > 0)
-// 				//{
-// 				ll mask = (((ll)1) << (start_bitpos)) - 1;
-// 				current &= mask;
-// 				// cerr << "mask=" << hex << mask << " masked current = " << current << " start_bitpos=" << dec << start_bitpos << endl;
-// 				int offs = __builtin_ffsl(current);
-// 				if (offs != 0)
-// 				{
-// 					// cerr << "vector_size after3: " << longlongs.size() << endl;
-// 					return llpos * sizeof(ll) * 8 + offs - 1;
-// 				}
-// 				else
-// 				{
-// 					//}
-// 					return -1;
-// 				}
-// 			}
-// 		}
-// 	}
-// } __attribute__((aligned(sizeof(ll))));
 
 // void bitvector_test()
 // {
