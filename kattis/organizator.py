@@ -2,7 +2,7 @@
 
 import random
 
-N = 1000
+N = 3000
 
 s = str(N)+"\n"
 
