@@ -5,6 +5,11 @@
  *
  * find subset S of the n_i which maximizes lcd(S) * |S| with |S|>=2
  */
+
+
+// weitere idee: man kann während der evaluierung vielleicht noch
+// heruasbekommen, welche factoren keine chance mehr haben.
+
 #include <bits/stdc++.h>
 #include <chrono>
 using namespace std::chrono;
@@ -240,7 +245,9 @@ int main() {
 	agenda.emplace_back(State(my_primes, sizes.size()));
 
 	//priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
-	unordered_set<State> history;
+	
+	//unordered_set<State> history;
+	unordered_set<int> history;
 
 	//ll search_space = 0;
 	while (agenda.size() > 0)
@@ -258,7 +265,7 @@ int main() {
 		// cerr << ">> current: " << current << " with " << current.remaining_actions.size() << " remaining actions" << endl;
 		
 		//cout << "AS=" << agenda.size() << endl;
-		history.insert(current);
+		history.insert(current.applied_actions);
 //		if (current.potential_score > best_score)
 //		{
 		if (current.score > best_score)
@@ -279,18 +286,19 @@ int main() {
 			ll child_num_actions = current.num_actions+1;			
 			ll new_score = evaluate(child_applied_actions, sizes, child_num_actions, positions_of_factors, current_action);
 
-			if (new_score > current.score) {
+			if (history.find(child_applied_actions) == history.end() && new_score > current.score) {
 				vll new_remaining_actions = current.remaining_actions;
 				new_remaining_actions.erase(new_remaining_actions.begin()+i);
 				State child(child_applied_actions, new_remaining_actions, child_num_actions,new_score);
-				if (history.find(child) == history.end()) {
+				//if (history.find(child) == history.end()) {
 					agenda.push_back(child);
 					push_heap(agenda.begin(), agenda.end());
-					history.insert(child);
-				} else {
-					//unsuccessful.insert(current_action);
-					//cerr << "dropping child " << child << " because it's already in the history" << endl;
-				}
+					//history.insert(child);
+					history.insert(child_applied_actions);
+				// } else {
+				// 	//unsuccessful.insert(current_action);
+				// 	//cerr << "dropping child " << child << " because it's already in the history" << endl;
+				// }
 			} else {
 				// cerr << "dropping child " << child << " because score " << child.score << " is worse than the parent's score: " << current.score << endl;
 				//unsuccessful.insert(current_action);
