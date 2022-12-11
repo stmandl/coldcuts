@@ -120,17 +120,16 @@ ll evaluate(ll factors, const vector<ll>& teams, ll num_actions, unordered_map<i
 	ll num_positions = possible_teams.size();
 	for (int i=0; i<num_positions; i++) {
 		ll team = teams[possible_teams[i]];
-		ll g = team / factors;
-		//cout << "gcd(" << factors << "," << team << ")="  << g << endl;
-		if ((g * factors == team)) {
+		//ll g = team / factors;		
+		//if ((g * factors == team)) {
+		if ((team % factors)==0)
 			res+=factors;
 			num_teams_covered++;
 		}
 	}
 	if (num_teams_covered < 2) {
 		res = 0;
-	}
-	//cout << "num_teams_covered= " << num_teams_covered << " res=" << res << endl;
+	}	
 	auto stop = high_resolution_clock::now();
 	eval_time += duration_cast<nanoseconds>(stop - start).count();
 	return res;
@@ -314,7 +313,7 @@ exit:
 	if (best_score <= 0) 
 		best_score = N;
 	//cout << "Search space size: " << search_space << endl;
-	//cout << "total eval time:" << eval_time/1.0e9 << endl;
+	cout << "total eval time:" << eval_time/1.0e9 << endl;
 	cout << best_score;
 
 	return 0;
