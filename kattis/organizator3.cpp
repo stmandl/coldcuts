@@ -24,7 +24,7 @@ using fmap = unordered_map<int, int>;
 // prime numbers
 ll _sieve_size;
 bitset<2000010> bs;
-vll primes;
+vll p;
 
 void sieve(ll upperbound)
 {
@@ -36,7 +36,7 @@ void sieve(ll upperbound)
 			// cross out multiplues of i starting from i*i
 			for (ll j = i*i; j<_sieve_size; j+=i)
 				bs[j] = 0;
-            primes.push_back(i);
+			p.push_back(i);
 		}
 }
 
@@ -56,23 +56,26 @@ inline void update_stat(ll value, ll new_f, fmap& freqs_stat, bool max_mode) {
 }
 
 void primeFactors(ll N, fmap& freqs,
+					//fmap& pmin_freqs,
 					fmap& pmax_freqs,
 					unordered_map<int,vector<int>>& positions_of_factors,
 					int pos) {	
-	for (int i=0; (i < (int)primes.size()) && (primes[i]*primes[i] <= N); ++i)
+	for (int i=0; (i < (int)p.size()) && (p[i]*p[i] <= N); ++i)
 	{	
 		int c = 0;		
-		while (N%primes[i] == 0) {
-			N /= primes[i];
+		while (N%p[i] == 0) {			
+			N /= p[i];
 			c+=1;
 		}
 		if (c>0) {
-			update_stat(primes[i], c, pmax_freqs, true);
-			freqs.insert(make_pair(primes[i],c));
-			positions_of_factors[primes[i]].push_back(pos);
+			//update_stat(p[i], c, pmin_freqs, false);
+			update_stat(p[i], c, pmax_freqs, true);
+			freqs.insert(make_pair(p[i],c));
+			positions_of_factors[p[i]].push_back(pos);
 		}
 	}
 	if (N != 1) {
+		//update_stat(N, 1, pmin_freqs, false);
 		update_stat(N, 1, pmax_freqs, true);
 		freqs.insert(make_pair(N,1));
 		positions_of_factors[N].push_back(pos);
@@ -106,8 +109,6 @@ void print_vll(std::ostream&s, const vll& v) {
 	}	
 }
 
-ll best_score = -1;
-unordered_set<ll> dead_actions;
 
 ll eval_time = 0;
 
@@ -116,22 +117,19 @@ ll evaluate(ll factors, const vector<ll>& teams, ll num_actions, unordered_map<i
 	ll res=0;
 	ll num_teams_covered = 0;
 	vector<int>& possible_teams = positions_of_factors[current_action];
-    ll sum_of_action_members = 0;
 	ll num_positions = possible_teams.size();
 	for (int i=0; i<num_positions; i++) {
 		ll team = teams[possible_teams[i]];
-        sum_of_action_members+=team;
-		if ((team % factors) == 0) {
+		//ll g = team / factors;		
+		//if ((g * factors == team)) {
+		if ((team % factors)==0)
 			res+=factors;
 			num_teams_covered++;
 		}
 	}
 	if (num_teams_covered < 2) {
 		res = 0;
-	}
-    if (sum_of_action_members<best_score) {
-        dead_actions.insert(current_action);
-    }
+	}	
 	auto stop = high_resolution_clock::now();
 	eval_time += duration_cast<nanoseconds>(stop - start).count();
 	return res;
@@ -180,30 +178,34 @@ struct StateCmp
 		return a.score < b.score;
 	}
 };
-std::ostream &operator<<(std::ostream &s, const vector<int> &v)
-{
-    s << "[";
-    for (int i=0; i<v.size(); i++) {
-        s << v[i];
-        if (i<v.size()-1) {
-            s << ",";
-        }
-    }
-    s << "]";
-    return s;
-}
 
 std::ostream &operator<<(std::ostream &s, const State &b)
 {
 	s << "[Sc:" << dec << b.score << "," << b.applied_actions;
-	s << "||" << b.remaining_actions << "]";
+	s << "||";
+	print_vll(s, b.remaining_actions);
+	s << "]";
 	return s;
 }
 
+std::ostream &operator<<(std::ostream &s, const vector<int> &v)
+{
+	s << "[";
+	for (int i=0; i<v.size(); i++) {
+		s << v[i];
+		if (i<v.size()-1) {
+			s << ",";
+		}
+	}
+	s << "]";
+	return s;
+}
 
 int main() {
 	ll max_prime = ll(sqrt(2'000'000))+1;
+	// cout << "BP=" << max_prime << endl;
 	sieve(max_prime);
+	
 	// read input
 	ll N;
 	cin >> N;
@@ -214,6 +216,7 @@ int main() {
 		cin >> size;
 		sizes.push_back(size);
 	}
+
 	// factorize
 	vector<fmap> pfreqs;	
 	unordered_map<int,vector<int>> positions_of_factors;
@@ -236,17 +239,16 @@ int main() {
 	}
 
 	vector<State> agenda;
-
+	ll best_score = -1;
 	// initial state
 	agenda.emplace_back(State(my_primes, sizes.size()));
 
 	//priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
 	
 	//unordered_set<State> history;
-	unordered_set<ll> history;
+	unordered_set<int> history;
 
 	//ll search_space = 0;
-
 	while (agenda.size() > 0)
 	{
 		// cout << "****** AGENDA (" << agenda.size() << ") *****" << endl;
@@ -265,15 +267,19 @@ int main() {
 		history.insert(current.applied_actions);
 //		if (current.potential_score > best_score)
 //		{
-
+		if (current.score > best_score)
+		{
+			best_score = current.score;
+			// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
+		}
 		std::unordered_set<ll> unsuccessful;			
 		for (int i=0; i<current.remaining_actions.size(); i++) {
 			
 			ll current_action = current.remaining_actions[i];
-
-            if (dead_actions.find(current_action) != dead_actions.end()) {
-                continue;
-            }
+			// if (unsuccessful.find(current_action) != unsuccessful.end()) {
+			// 	continue;
+			// }			
+			// State child(current.applied_actions, new_remaining_actions, current_action, sizes, current.num_actions+1);
 
 			ll child_applied_actions = current.applied_actions * current_action;
 			ll child_num_actions = current.num_actions+1;			
@@ -283,16 +289,24 @@ int main() {
 				vll new_remaining_actions = current.remaining_actions;
 				new_remaining_actions.erase(new_remaining_actions.begin()+i);
 				State child(child_applied_actions, new_remaining_actions, child_num_actions,new_score);
-                agenda.push_back(child);
-                push_heap(agenda.begin(), agenda.end());
-                //history.insert(child);
-                history.insert(child_applied_actions);
-                if (child.score > best_score)
-                {
-                    best_score = child.score;
-                }
+				//if (history.find(child) == history.end()) {
+					agenda.push_back(child);
+					push_heap(agenda.begin(), agenda.end());
+					//history.insert(child);
+					history.insert(child_applied_actions);
+				// } else {
+				// 	//unsuccessful.insert(current_action);
+				// 	//cerr << "dropping child " << child << " because it's already in the history" << endl;
+				// }
+			} else {
+				// cerr << "dropping child " << child << " because score " << child.score << " is worse than the parent's score: " << current.score << endl;
+				//unsuccessful.insert(current_action);
 			}
 		}
+
+		// if (agenda.size() > 4) {
+		// 	goto exit;
+		// }
 	}
 exit:
 	// cout << "RESULT: " << best_score << endl;
@@ -300,7 +314,6 @@ exit:
 		best_score = N;
 	//cout << "Search space size: " << search_space << endl;
 	cout << "total eval time:" << eval_time/1.0e9 << endl;
-    cout << "num_dead_actions:" << dead_actions.size() << " out of " << pfreqs.size() << endl;
 	cout << best_score;
 
 	return 0;

@@ -5,6 +5,11 @@
  *
  * find subset S of the n_i which maximizes lcd(S) * |S| with |S|>=2
  */
+
+
+// weitere idee: man kann während der evaluierung vielleicht noch
+// heruasbekommen, welche factoren keine chance mehr haben.
+
 #include <bits/stdc++.h>
 #include <chrono>
 using namespace std::chrono;
@@ -54,7 +59,8 @@ void primeFactors(ll N, fmap& freqs,
 					//fmap& pmin_freqs,
 					fmap& pmax_freqs,
 					unordered_map<int,vector<int>>& positions_of_factors,
-					int pos) {	
+					int pos, 
+					unordered_map<int,int>&  num_positions_of_factors) {	
 	for (int i=0; (i < (int)p.size()) && (p[i]*p[i] <= N); ++i)
 	{	
 		int c = 0;		
@@ -67,6 +73,7 @@ void primeFactors(ll N, fmap& freqs,
 			update_stat(p[i], c, pmax_freqs, true);
 			freqs.insert(make_pair(p[i],c));
 			positions_of_factors[p[i]].push_back(pos);
+			num_positions_of_factors[p[i]] += 1;
 		}
 	}
 	if (N != 1) {
@@ -74,6 +81,7 @@ void primeFactors(ll N, fmap& freqs,
 		update_stat(N, 1, pmax_freqs, true);
 		freqs.insert(make_pair(N,1));
 		positions_of_factors[N].push_back(pos);
+		num_positions_of_factors[N] += 1;
 	}
 }
 
@@ -105,29 +113,27 @@ void print_vll(std::ostream&s, const vll& v) {
 }
 
 
-ll eval_time = 0;
+//ll eval_time = 0;
 
-ll evaluate(ll factors, const vector<ll>& teams, ll num_actions, unordered_map<int,vector<int>>& positions_of_factors, ll current_action) {
-	auto start = high_resolution_clock::now();
+ll evaluate(ll factors, const vector<ll>& teams, unordered_map<int,vector<int>>& positions_of_factors, ll current_action) {
+	//auto start = high_resolution_clock::now();
 	ll res=0;
 	ll num_teams_covered = 0;
 	vector<int>& possible_teams = positions_of_factors[current_action];
 	ll num_positions = possible_teams.size();
 	for (int i=0; i<num_positions; i++) {
-		ll team = teams[possible_teams[i]];
-		ll g = team / factors;
-		//cout << "gcd(" << factors << "," << team << ")="  << g << endl;
-		if ((g * factors == team)) {
+		ll team = teams[possible_teams[i]];		
+		//ll g = team / factors;		
+		if ((team % factors) == 0) {
 			res+=factors;
 			num_teams_covered++;
 		}
 	}
 	if (num_teams_covered < 2) {
 		res = 0;
-	}
-	//cout << "num_teams_covered= " << num_teams_covered << " res=" << res << endl;
-	auto stop = high_resolution_clock::now();
-	eval_time += duration_cast<nanoseconds>(stop - start).count();
+	}	
+	//auto stop = high_resolution_clock::now();
+	//eval_time += duration_cast<nanoseconds>(stop - start).count();
 	return res;
 };
 
@@ -135,24 +141,41 @@ struct State {
 	friend std::hash<State>;
 	ll applied_actions;
 	vll remaining_actions;	
-	ll score;
-	ll num_actions;
+	ll score;	
+	bool valid;
 	State(const vll& remaining_actions_, ll num_teams)
-	: applied_actions(1), remaining_actions(remaining_actions_), score(0), num_actions(0)
+	: applied_actions(1), remaining_actions(remaining_actions_), score(0), valid(true)
 	{		
 	}
-	State(ll applied_actions_, const vll& remaining_actions_, ll num_actions_, ll score_) :
-    	applied_actions(applied_actions_), remaining_actions(remaining_actions_), num_actions(num_actions_), score(score_)
+	State(ll applied_actions_, const vll& remaining_actions_, ll score_) :
+    	applied_actions(applied_actions_), remaining_actions(remaining_actions_), score(score_), valid(true)
 	{
 		
 	}
 	bool operator==(const State &o) const 
 	{
+		// assert (this->valid && o.valid);
 		return applied_actions == o.applied_actions && remaining_actions == o.remaining_actions;
 	}
 	friend bool operator<(const State &a, const State &b) 
 	{
+		// assert (a.valid && b.valid);
 		return a.score < b.score;
+	}
+	State(const State&) = delete;
+	State(State&& other) 
+	: applied_actions(other.applied_actions),
+	remaining_actions(std::move(other.remaining_actions)),
+	score(other.score)	
+	{
+		other.remaining_actions = std::vector<ll>();
+	}
+	State& operator=(State&&other) {
+		applied_actions = other.applied_actions;
+		remaining_actions = std::move(other.remaining_actions);
+		score = other.score;			
+		other.remaining_actions = std::vector<ll>();
+		return *this;
 	}
 };
 
@@ -205,22 +228,27 @@ int main() {
 	// read input
 	ll N;
 	cin >> N;
+	int max_input=0;
 	vll sizes;
 	for (ll i = 1; i <= N; i++)
 	{
 		ll size;
 		cin >> size;
 		sizes.push_back(size);
+		if (size>max_input) {
+			max_input = size;
+		}
 	}
 
 	// factorize
 	vector<fmap> pfreqs;	
 	unordered_map<int,vector<int>> positions_of_factors;
+	unordered_map<int,int> num_positions_of_factors;
 	fmap pmax_freqs;
 	for (int i=0;i<N; ++i) {
 		pfreqs.emplace_back(fmap{});
 		fmap& current = pfreqs.back();
-		primeFactors(sizes[i], current, pmax_freqs, positions_of_factors, i);
+		primeFactors(sizes[i], current, pmax_freqs, positions_of_factors, i, num_positions_of_factors);
 	}
 
 	vll my_primes;
@@ -238,11 +266,8 @@ int main() {
 	ll best_score = -1;
 	// initial state
 	agenda.emplace_back(State(my_primes, sizes.size()));
-
-	//priority_queue<State, vector<State>, StateCmp> agenda(agenda_raw.begin(), agenda_raw.end());
-	unordered_set<State> history;
-
-	//ll search_space = 0;
+	unordered_set<int> history;
+	unordered_set<int> dead_actions;
 	while (agenda.size() > 0)
 	{
 		// cout << "****** AGENDA (" << agenda.size() << ") *****" << endl;
@@ -251,50 +276,76 @@ int main() {
 		// }
 		// cout << "********************" << endl;
 		std::pop_heap(agenda.begin(), agenda.end());
-		State current = agenda.back();
+		State current = move(agenda.back());
 		agenda.pop_back();
 
 		//search_space++;
 		// cerr << ">> current: " << current << " with " << current.remaining_actions.size() << " remaining actions" << endl;
 		
 		//cout << "AS=" << agenda.size() << endl;
-		history.insert(current);
+		//history.insert(current.applied_actions);
 //		if (current.potential_score > best_score)
 //		{
-		if (current.score > best_score)
-		{
-			best_score = current.score;
-			// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
-		}
-		std::unordered_set<ll> unsuccessful;			
-		for (int i=0; i<current.remaining_actions.size(); i++) {
+
+		std::unordered_set<ll> unsuccessful;
+		size_t current_remaining_size = current.remaining_actions.size();
+		for (int i=0; i<current_remaining_size; i++) {
 			
 			ll current_action = current.remaining_actions[i];
-			// if (unsuccessful.find(current_action) != unsuccessful.end()) {
+			// if (dead_actions.find(current_action) != dead_actions.end())
+			// {
 			// 	continue;
-			// }			
-			// State child(current.applied_actions, new_remaining_actions, current_action, sizes, current.num_actions+1);
-
+			// }
 			ll child_applied_actions = current.applied_actions * current_action;
-			ll child_num_actions = current.num_actions+1;			
-			ll new_score = evaluate(child_applied_actions, sizes, child_num_actions, positions_of_factors, current_action);
+			if (history.find(child_applied_actions) != history.end())
+			{
+				continue;
+			}
+			// if (pmax_freqs[current_action] * num_positions_of_factors[current_action] < best_score) {
+			// 	int max_size=0;
+			// 	vector<int>& pof = positions_of_factors[current_action];
+			// 	for (int size:pof) {
+			// 		max_size = max(size,max_size);
+			// 	}
+			// 	if (max_size * pof.size() < best_score) {
+			// 		history.insert(child_applied_actions);
+			// 		dead_actions.insert(current_action);
+			// 		continue;
+			// 	}
+			// }
+			
 
-			if (new_score > current.score) {
+
+			ll new_score = evaluate(child_applied_actions, sizes, positions_of_factors, current_action);
+
+			if (/* history.find(child_applied_actions) == history.end()  && */new_score > current.score) {
 				vll new_remaining_actions = current.remaining_actions;
 				new_remaining_actions.erase(new_remaining_actions.begin()+i);
-				State child(child_applied_actions, new_remaining_actions, child_num_actions,new_score);
-				if (history.find(child) == history.end()) {
-					agenda.push_back(child);
-					push_heap(agenda.begin(), agenda.end());
-					history.insert(child);
-				} else {
-					//unsuccessful.insert(current_action);
-					//cerr << "dropping child " << child << " because it's already in the history" << endl;
+				//unique_ptr<State> child = make_unique<State>;
+				//if (history.find(child) == history.end()) {
+				agenda.emplace_back(State(child_applied_actions, new_remaining_actions, new_score));
+				push_heap(agenda.begin(), agenda.end());
+					//history.insert(child);
+				history.insert(child_applied_actions);
+
+				if (new_score > best_score)
+				{
+					best_score = new_score;
+					// cerr << "Updated best_score to " << best_score << " from size set=" << current.size << endl;
 				}
-			} else {
-				// cerr << "dropping child " << child << " because score " << child.score << " is worse than the parent's score: " << current.score << endl;
-				//unsuccessful.insert(current_action);
+
+			// } else {
+			//  	//unsuccessful.insert(current_action);
+			// 	cerr << "dropping child because it's already in the history" << endl;			
+			// } 
 			}
+			// else {
+			// 					vll new_remaining_actions = current.remaining_actions;
+			// 	new_remaining_actions.erase(new_remaining_actions.begin()+i);
+			// 	 State child(child_applied_actions, new_remaining_actions, child_num_actions,new_score);
+			// 	 cerr << "dropping child " << child << " because score " << child.score << " is worse than the parent's score or in history: " << current.score << endl;
+			// 	//unsuccessful.insert(current_action);
+			// }
 		}
 
 		// if (agenda.size() > 4) {
