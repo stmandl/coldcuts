@@ -127,7 +127,7 @@ int main()
     rotate_k(small_array, 10);
     cout << "rotate-10: " << small_array << endl;
 
-    vector<int> big_array(8'000'000'000);    
+    vector<int> big_array(2'000'000'000);    
     iota(big_array.begin(), big_array.end(), 0);    
 
     cout << "Rotating " << big_array.size() << " items took " <<  time_it([&big_array]{    
