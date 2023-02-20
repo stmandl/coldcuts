@@ -25,28 +25,33 @@ public:
         return b<=v && v <= a;
     }
 
-    int search(vector<int>& num, int from, int to, int target) {
-        sleep(1);
-        //cout << "FROM: " << from << " TO: " << to << endl;
-        if (num[from] == target) {
-            return from;
-        }
-        if (from == to) {
-            return -1;
-        }
-        int m = (from + (to-from)/2) % num.size();
-        //cout << "M=" << m << endl;
-        int res = -1;        
-        if (between(target, num[(m+1)%num.size()], num[to])) {
-            res = search(num, (m+1)%num.size(), to, target);
-        } else {        
-            res = search(num, from, m, target);
-        }
-        return res;        
-    }
 
     int search(vector<int>& nums, int target) {
-        return search(nums, 0, nums.size()-1, target);
+        int l = 0;
+        int r = nums.size()-1;
+
+        while (l<=r) {
+            int m = (l+r)/2;
+            if (nums[m] == target) {
+                return m;
+            }
+
+            // left sorted
+            if (nums[l] <= nums[m]) {
+                if (target > nums[m] || target < nums[l]) {
+                    l = m+1;
+                } else {
+                    r = m-1;
+                }
+            } else {
+                if (target > nums[r] || target < nums[m]) {
+                    r = m-1;
+                } else {
+                    l = m + 1;
+                }
+            }
+        }
+        return -1;
     }
 };
 
@@ -61,15 +66,17 @@ t=1
 
 int main()
 {   
-    vector<int> ex5{5,1,2,3,4};
-    cout << Solution().search(ex5, 1) << endl;
-    vector<int> ex0{5,1,3};
-    cout << Solution().search(ex0, 3) << endl;
-    vector<int> ex1{4,5,6,7,0,1,2};
-    cout << Solution().search(ex1, 0) << endl;    
-    vector<int> ex2{4,5,6,7,0,1,2};
-    cout << Solution().search(ex2, 3) << endl;
-    vector<int> ex3{1};
-    cout << Solution().search(ex3, 0) << endl;
+    vector<int> ex6{3,4,5,6,7,1,2};
+    cout << Solution().search(ex6, 4) << endl;
+    // vector<int> ex5{5,1,2,3,4};
+    // cout << Solution().search(ex5, 1) << endl;
+    // vector<int> ex0{5,1,3};
+    // cout << Solution().search(ex0, 3) << endl;
+    // vector<int> ex1{4,5,6,7,0,1,2};
+    // cout << Solution().search(ex1, 0) << endl;    
+    // vector<int> ex2{4,5,6,7,0,1,2};
+    // cout << Solution().search(ex2, 3) << endl;
+    // vector<int> ex3{1};
+    // cout << Solution().search(ex3, 0) << endl;
     return 0;
 }
