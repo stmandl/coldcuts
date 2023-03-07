@@ -39,6 +39,11 @@ struct hash<Pos> {
 };
 }
 
+// TODO:
+// AS FLOW PROBLEM:
+// directed flow graph mit probability als capacities
+// an einem anderen Tag
+
 class Maze
 {
 public:
@@ -164,7 +169,7 @@ public:
     
     int run() {
 	int current = pos_num(frogPosition);
-	int steps_left=10;
+	int steps_left=100;
 	while (steps_left--) {
 	    if (exits[current]) {
 		//cerr << "RE " << steps_left << endl;
@@ -194,9 +199,9 @@ public:
     double computeProbability() {
 	double num_succ = 0;
 	double num_attempts = 0;
-	for (int i=0; i<100; i++) {
+	for (int i=0; i<10000; i++) {
 	    int r = run();
-	    cerr << "R=" << r << endl;
+	    //cerr << "R=" << r << endl;
 	    if (r < 0) {
 		continue;
 	    } else {	
@@ -211,13 +216,13 @@ public:
 int main()
 {
 
-    int a0=0,a1=0;
-    for (int i=0; i<10000000; i++) {
-	if (rand()%4 == 0) a0++;
-	a1++;
-    }
-    cerr << (1.0*a0)/(1.0*a1) << endl;
-    return 0;
+    // int a0=0,a1=0;
+    // for (int i=0; i<100000; i++) {
+	// if (rand()%4 == 0) a0++;
+	// a1++;
+    // }
+    // cerr << (1.0*a0)/(1.0*a1) << endl;
+    // return 0;
     
     string first_multiple_input_temp;
     getline(cin, first_multiple_input_temp);

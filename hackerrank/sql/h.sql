@@ -36,6 +36,37 @@ insert into submissions values ('2016-03-05',90006,36396,0);
 
 insert into submissions values ('2016-03-06',90404,20703,0);
 
+/*
+
+select lag(has_sub,1) over (partition by hacker_id order by submission_date)
+from
+(
+select all_comb.submission_date, all_comb.hacker_id, s.submission_date is not null as has_sub from
+(
+select * from
+(select distinct submission_date from submissions) as x1
+cross join 
+ (select distinct hacker_id from submissions) as x2
+  ) as all_comb
+  left join submissions as s
+  on (all_comb.hacker_id = s.hacker_id and all_comb.submission_date = s.submission_date)
+ ) as x3
+ order by submission_date,hacker_id;
+
+
+select all_comb.submission_date, all_comb.hacker_id, s.submission_date is not null as has_sub from
+(
+select * from
+(select distinct submission_date from submissions) as x1
+cross join 
+ (select distinct hacker_id from submissions) as x2
+  ) as all_comb
+  left join submissions as s
+  on (all_comb.hacker_id = s.hacker_id and all_comb.submission_date = s.submission_date)
+ 
+ order by submission_date,hacker_id;
+
+*/
 
 /*
 select submission_date, best.hacker_id, name
