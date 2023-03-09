@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 with open("dict.txt") as f:
     words = f.readlines()
     for i, w in enumerate(words):
@@ -22,19 +24,25 @@ class WordTree:
                 self.next[c] = WordTree.Node(False)
             self.next[c].insert(rest)            
 
-        def gather(self, characters, word, bag, constraints=[]):
-            print("Gather:",characters, word, bag, constraints)
+        def gather(self, characters, word, bag, given=[], constraints=[]):
+            #print("Gather:",characters, word, bag, constraints, given)
             if self.is_word:
                 #print("Result:", word)
                 bag.append(word)
-            for i in range(len(characters)):
-                c = characters[i]
-                if len(constraints) > 0 and c not in constraints[0]:
-                    continue
+            if len(given)>0 and given[0] is not None:
+                c = given[0]
+                #print("c",c,"in self.next:",self.next)
                 if c in self.next:
-                    remaining = characters[:i]+characters[i+1:]
-                    nword = word + c
-                    self.next[c].gather(remaining, nword, bag, constraints[1:])
+                    self.next[c].gather(characters, word+c, bag, given[1:], constraints[1:])
+            else:
+                for i in range(len(characters)):
+                    c = characters[i]
+                    if len(constraints) > 0 and c not in constraints[0]:
+                        continue                
+                    if c in self.next:
+                        remaining = characters[:i]+characters[i+1:]
+                        nword = word + c
+                        self.next[c].gather(remaining, nword, bag, given[1:], constraints[1:])
                 
 
 
@@ -154,19 +162,19 @@ class Solver:
 
     def copy(self):
         assert self.analyzed
-        res = Solver(deepcopy(self.board), deepcopy(self.panel), wt)
+        res = Solver(self.board, self.panel, wt)
         res.possible_chars = self.possible_chars
         res.attach_positions = self.attach_positions
         res.positions = self.positions
         res.analyzed = True
+        return res
     
-    def solve_in_position(self, pos):
+    def solve_in_position(self, pos, results):
         if not self.analyzed:
             self.analyze()
         # move left to the first character in the row left to pos
         while not self.is_empty(self.left(pos)):
-            pos = self.left(pos)
-        results={}
+            pos = self.left(pos)        
         while pos is not None:
             self.fit(pos, results)
             pos = self.left(pos)
@@ -174,38 +182,38 @@ class Solver:
 
     
     def fit(self, pos, results):
-        print("fitting at pos:",pos)
+        #print("fitting at pos:",pos)
+        #print("Board:", self.board)
         prefix = ""
         while not self.is_empty(pos):
             prefix += self.content(pos)
             pos = self.right(pos)
         _, node = self.wt.lookup(prefix)
-        print("prefix",prefix,"pos",pos)
+        #print("prefix",prefix,"pos",pos)
         pointer = pos
         constraints = []
+        given = []
         while pointer in self.positions:
             constraints.append(self.possible_chars[pointer])
+            given.append(self.content(pointer) if not self.is_empty(pointer) else None)
             pointer = self.right(pointer)
-        print("constratints", constraints)
-        print("panel", panel)
-        print("node==root", node==self.wt.root)
+        #print("constratints", constraints)
+        #print("panel", panel)
+        #print("node==root", node==self.wt.root)
         suffixes = []
-        node.gather(self.panel, "", suffixes, constraints)
+        node.gather(self.panel, "", suffixes, given, constraints)
         for s in suffixes:
-            results[pos] = prefix+s
+            results[pos].add(prefix+s)
         return results
-
-
 
 
     def solutions(self):
         if not self.analyzed:
             self.analyze()
-        results = []
+        results = defaultdict(set)
         for p in self.attach_positions:
             c = self.copy()
-            results.extend(c.solve_in_position(p))
-        results = [r.board for r in results]
+            c.solve_in_position(p, results)        
         return results
 
     def read_downwards(self, pos):
@@ -248,7 +256,8 @@ class Solver:
 
 
 s = Solver(board, panel, wt)
-print("solve in 2,0:", s.solve_in_position(pos=(2,0)))
+print("solve in 2,0:", s.solve_in_position(pos=(2,0),results=defaultdict(set)))
+print("All solutions", s.solutions())
 print("exiting")
 import sys
 sys.exit(0)
