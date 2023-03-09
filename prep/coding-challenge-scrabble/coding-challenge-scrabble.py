@@ -22,17 +22,19 @@ class WordTree:
                 self.next[c] = WordTree.Node(False)
             self.next[c].insert(rest)            
 
-        def gather(self, characters, word, bag):
-            #print("Gather:",characters, word, bag)
+        def gather(self, characters, word, bag, constraints=[]):
+            print("Gather:",characters, word, bag, constraints)
             if self.is_word:
                 #print("Result:", word)
                 bag.append(word)
             for i in range(len(characters)):
                 c = characters[i]
+                if len(constraints) > 0 and c not in constraints[0]:
+                    continue
                 if c in self.next:
                     remaining = characters[:i]+characters[i+1:]
                     nword = word + c
-                    self.next[c].gather(remaining, nword, bag)
+                    self.next[c].gather(remaining, nword, bag, constraints[1:])
                 
 
 
@@ -75,7 +77,7 @@ print(wt.possibleWords(list("panmelyy".upper()), "LAM"))
 
 
 
-with open("coding-challenge-scrabble.inp1") as f:
+with open("coding-challenge-scrabble.inp2") as f:
     board = f.readlines()
     panel = list(board[-1].strip().upper())    
     board = board[:-1]
@@ -90,14 +92,14 @@ class Solver:
     """
     Given a board, a panel (list of chars), and a dictionary, suggest possible plays
     """
-    def __init__(self, board, panel, wt):
+    def __init__(self, board, panel, wt: WordTree):
         self.board = board
         self.panel = panel
         self.wt = wt
         self.analyzed = False
 
     def analyze(self):
-
+        print("Analyzing board")
         self.positions = set()
         for r in range(len(self.board[0])):
             for c in range((len(self.board))):
@@ -148,6 +150,7 @@ class Solver:
                     self.possible_chars[p] = set(self.panel)
 
         self.analyzed = True
+        print("... done")
 
     def copy(self):
         assert self.analyzed
@@ -158,8 +161,41 @@ class Solver:
         res.analyzed = True
     
     def solve_in_position(self, pos):
-        assert self.analyzed()
-        
+        if not self.analyzed:
+            self.analyze()
+        # move left to the first character in the row left to pos
+        while not self.is_empty(self.left(pos)):
+            pos = self.left(pos)
+        results={}
+        while pos is not None:
+            self.fit(pos, results)
+            pos = self.left(pos)
+        return results
+
+    
+    def fit(self, pos, results):
+        print("fitting at pos:",pos)
+        prefix = ""
+        while not self.is_empty(pos):
+            prefix += self.content(pos)
+            pos = self.right(pos)
+        _, node = self.wt.lookup(prefix)
+        print("prefix",prefix,"pos",pos)
+        pointer = pos
+        constraints = []
+        while pointer in self.positions:
+            constraints.append(self.possible_chars[pointer])
+            pointer = self.right(pointer)
+        print("constratints", constraints)
+        print("panel", panel)
+        print("node==root", node==self.wt.root)
+        suffixes = []
+        node.gather(self.panel, "", suffixes, constraints)
+        for s in suffixes:
+            results[pos] = prefix+s
+        return results
+
+
 
 
     def solutions(self):
@@ -212,7 +248,8 @@ class Solver:
 
 
 s = Solver(board, panel, wt)
-
+print("solve in 2,0:", s.solve_in_position(pos=(2,0)))
+print("exiting")
 import sys
 sys.exit(0)
 
